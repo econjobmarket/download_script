@@ -6,6 +6,7 @@ use Illuminate\Database\Capsule\Manager;
 class db extends Illuminate\Database\Capsule\Manager{};
 
 // run the script
+$showdots = false;
 if ($_SERVER ['HTTP_HOST'])
   die ('cli only');
   if ($argv [1] != '-c')
@@ -14,21 +15,30 @@ if ($_SERVER ['HTTP_HOST'])
       die ("{$argv[2]} is not a readable configuration file\n");
       include $argv [2];
   // print_r( $cfg);
+  if(isset($argv[3])) $showdots = true;
   $link = new db;
   $link -> addConnection($cfg -> database);
   $link -> setAsGlobal();
  // $autoloader = require... then $result = $autoloader -> findFile('Econjobmarket\OauthClient');
-  print_r($result);
+  $started_at = date("Y-m-d H:i:s");
+  print "Starting script at ".$started_at."\n";
+  print "Started script using ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
   $client = new OauthClient($cfg);
-  print "Now using ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
   if($client -> error) {
-    print_r($client);
+    print "Error creating client:".$client -> error."\nDescription: ".$client -> error_description;
     die("No Curl client, stopped without processing");
   } else {
     //starting with appications, note the insert or update method so entries are always replaced
+    print "Processing applications\n";
     $result = $client -> fetch('applications');
+    if($result -> error == 'invalid request' and ($result -> error_description == 'Missing or expired token.')) {
+      unset($client);
+      $client = new OauthClient($cfg);
+      $result = $client -> fetch('applications');
+    }
     if($result) {
       foreach($result as $res) {
+          if($showdots) print("*");
           db::table('myapplications')
             -> where('appid', $res -> appid)
             -> updateOrInsert([
@@ -102,12 +112,15 @@ if ($_SERVER ['HTTP_HOST'])
             
             
       }
-      print "After applications used ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
+      print "\nAfter applications used ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
     } else print "Nothing returned fetching applications\n";
+    print "Now fetching applicants:\n";
     $result = $client -> fetch('applicants');
     if($result) {
+
         foreach($result as $res) {
-            db::table('myapplicants')
+          if($showdots) print("*");
+          db::table('myapplicants')
             -> where('aid', $res -> aid)
             -> updateOrInsert([
                 'aid' => $res -> aid,
@@ -167,7 +180,7 @@ if ($_SERVER ['HTTP_HOST'])
                 ]);
             }
         }
-        print "After applicants using ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
+        print "\nAfter applicants using ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
     } else print "Nothing returned fetching applications\n";
    
     //final section will update blobs
@@ -175,11 +188,14 @@ if ($_SERVER ['HTTP_HOST'])
     // already been downloaded.
     //Then clean the blobs table by deleting any blobs that don't have a matching file or recommendation record
     if(!$cfg -> transfer_blobs) die ("Ended without blob transfer as per config");
+    print "Processing files:\n";
     $user_files = db::table ('myfiles')
       -> select('file_id', 'blobid')
       -> get();
     $n = 0;
       foreach($user_files as $user_file) {
+        if($showdots) print "*";
+
         if(db::table('myblobs') -> where('blobid', $user_file -> blobid) -> doesntExist()) {
 
           if(!($result = $client -> fetch('files', $user_file -> file_id))) {
@@ -206,18 +222,27 @@ if ($_SERVER ['HTTP_HOST'])
       print "\n Added $n new files\n";
       print "After processing files used ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
       // finally the files associated with recommendations
+      print "Processing Letters\n";
       $user_letters = db::table ('myrecommendations')
       -> select('letterid', 'blobid')
       -> get();
       $n = 0;
       foreach($user_letters as $user_letter) {
+        if($showdots) print "*";
+        if(!$user_letter -> blobid or ($user_letter -> blobid == 0)) {
+          //print "Continuing\n";
+          continue;
+        }
+        
         if(db::table('myblobs') -> where('blobid', $user_letter -> blobid) -> doesntExist()) {
+          //print " for debug ".$user_letter -> letterid." then ".$user_letter -> blobid." ";
           if(!($result = $client -> fetch('letters', $user_letter -> letterid))) {
             die("Failed to get files");
           }
           if(!$result ->{0} -> blobid or ($result ->{0} -> blobid == 0)) continue;
-          $n++;
-          print "*";
+          $n++;          
+
+          try {
           db::table('myblobs')
           -> insert([
               'blobid' => $result ->{0} -> blobid,
@@ -227,10 +252,15 @@ if ($_SERVER ['HTTP_HOST'])
               'filecontent' => base64_decode($result ->{0} -> filecontent),
               'sha1_hash' => $result ->{0} -> sha1_hash,
           ]);
-        }
+          } catch (Exception $e) {
+              echo "Query problem: ".$e -> getMessage();
+              continue;
+          }
+        } 
       }
       print "\n Added $n new letters\n";
       print "After processing files used ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
+      print "Script started at $started_at and completed at ".date("Y-m-d H:i:s")."\n";
       
   }
 

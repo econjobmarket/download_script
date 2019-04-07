@@ -15,7 +15,9 @@ class OauthClient {
 
    $this -> token_url = $cfg -> token_url;
    $this -> resource_url = $cfg -> resource_url;
-    $curl_session = curl_init();
+   $this -> client_key = $cfg -> client_key;
+   $this -> client_secret = $cfg -> client_secret;
+/*     $curl_session = curl_init();
     curl_setopt($curl_session, CURLOPT_URL, $this -> token_url);
     curl_setopt($curl_session, CURLOPT_HEADER, false);
     curl_setopt($curl_session, CURLOPT_RETURNTRANSFER, true);
@@ -45,8 +47,42 @@ class OauthClient {
       $this -> error = "curl request returned false fetching $this->token_url ";
       $this -> error_description =  curl_error($curl_session).curl_errno($curl_session).debug(curl_getinfo($curl_session));
     }
-    
+ */    
   }
+  private function get_token() {
+    $curl_session = curl_init();
+    curl_setopt($curl_session, CURLOPT_URL, $this -> token_url);
+    curl_setopt($curl_session, CURLOPT_HEADER, false);
+    curl_setopt($curl_session, CURLOPT_RETURNTRANSFER, true);
+    $post_array = array (
+        'grant_type' => "client_credentials",
+    );
+    //    debug($post_array);
+    curl_setopt($curl_session, CURLOPT_POST, true);
+    curl_setopt($curl_session, CURLOPT_USERPWD, $this -> client_key.":".$this -> client_secret);
+    curl_setopt ($curl_session, CURLOPT_POSTFIELDS, $post_array);
+    if($result = curl_exec($curl_session)) {
+      $json =  json_decode($result);
+      
+      if(isset($json -> error)) {
+        
+        $this -> error = $json -> error;
+        $this -> error_description = $json -> error_description;
+      } else {
+        
+        $this -> access_token = $json -> access_token;
+        $this -> expires_in = $json -> expires_in;
+        $this -> token_type = $json -> token_type;
+        $this -> expires_at = time() + $this -> expires_in;
+      }
+    } else {
+      
+      $this -> error = "curl request returned false fetching $this->token_url ";
+      $this -> error_description =  
+        curl_error($curl_session).curl_errno($curl_session).debug(curl_getinfo($curl_session));
+    }
+  }
+  //
   public function fetch($resource = false, $id = false ) {
     if (!$resource) $this -> json_error('invalid request', "This request did not specify a resource.
       See documentation");
@@ -56,6 +92,11 @@ class OauthClient {
       $resource_url = $this -> resource_url.$resource."/".$id.'/';
     }
     // drupal_set_message($resource_url);
+    if(!$this -> access_token) $this -> get_token(); 
+    if(time() > $this -> expires_at -5) $this -> get_token();
+    if($this -> error) {
+      throw new \Exception('Curl failure:'.$this -> error.' '.$this -> error_description);
+    }
     $curl_session = curl_init();
     curl_setopt($curl_session, CURLOPT_URL, $resource_url);
     curl_setopt($curl_session, CURLOPT_HEADER, false);
