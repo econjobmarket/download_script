@@ -67,6 +67,19 @@ class DownloadUtility {
     }
     return $conferences;
   }
+  public function verifyRatingExists($rating) {
+    if(db :: table ( 'myratings' )
+        -> where ( 'rating', $rating )
+        -> doesntExist ()) {
+          //add the criteria
+          $n =
+            db::table('myratings')
+            -> insert([
+                'rating' => $rating,
+                'weight' => 0,
+            ]);
+        }
+  }
 }
 
 ?>

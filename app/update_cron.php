@@ -20,6 +20,9 @@ if ($_SERVER ['HTTP_HOST'])
   $link -> addConnection($cfg -> database);
   $link -> setAsGlobal();
   $u = new DownloadUtility($cfg);
+  foreach($cfg -> rating_terms as $rating) {
+    $u -> verifyRatingExists($rating);
+  }
  // $autoloader = require... then $result = $autoloader -> findFile('Econjobmarket\OauthClient');
   $started_at = date("Y-m-d H:i:s");
   print "Starting script at ".$started_at."\n";
@@ -38,8 +41,9 @@ if ($_SERVER ['HTTP_HOST'])
       foreach($result as $res) {
         if($showdots) print("*");
         db::table('myapplicants')
-        -> where('aid', $res -> aid)
-        -> updateOrInsert([
+        -> updateOrInsert(
+            ['aid' => $res -> aid],
+            [
             'aid' => $res -> aid,
             'enrolldate' => $res -> enrolldate,
             'changedate' => $res -> changedate,
@@ -86,11 +90,10 @@ if ($_SERVER ['HTTP_HOST'])
         //add the secondary fields
         foreach($res -> secondary_fields as $key => $value) {
           db::table('my_secondary_fields')
-          -> where([
-              ['aid', $res -> aid],
-              ['category_id', $key]
-          ])
-          -> updateOrInsert([
+          -> updateOrInsert(
+              ['aid' => $res -> aid,
+              'category_id' => $key],
+              [
               'aid' => $res -> aid,
               'category_id' => $key,
               'name' => $value,
@@ -111,11 +114,10 @@ if ($_SERVER ['HTTP_HOST'])
         //now the conferences
         foreach($res -> conferences as $key => $value) {
           db::table('myconferences')
-          -> where([
-              ['aid', $res -> aid],
-              ['conference_id', $key],
-          ])
-          -> updateOrInsert([
+          -> updateOrInsert(
+              ['aid' => $res -> aid,
+              'conference_id' => $key],
+              [
               'aid' => $res -> aid,
               'conference_id' => $key,
               'conference_name' => $value,
@@ -150,8 +152,9 @@ if ($_SERVER ['HTTP_HOST'])
       foreach($result as $res) {
           if($showdots) print("*");
           db::table('myapplications')
-            -> where('appid', $res -> appid)
-            -> updateOrInsert([
+            -> updateOrInsert(
+                ['appid' => $res -> appid],
+                [
                 'appid' => $res -> appid,
                 'aid' => $res -> aid,
                 'posid' => $res -> posid,
@@ -210,11 +213,10 @@ if ($_SERVER ['HTTP_HOST'])
                 
             foreach($res -> questions as $question) {
               db::table('myquestions') 
-                -> where([
-                    ['appid', $res -> appid],
-                    ['question_id', $question -> id],
-                ])
-                -> updateOrInsert([
+             -> updateOrInsert(
+                    ['appid' => $res -> appid,
+                    'question_id' => $question -> id],
+                    [
                     'appid' => $res -> appid,
                     'question_id' => $question -> id,
                     'question' => $question -> question,
@@ -225,8 +227,11 @@ if ($_SERVER ['HTTP_HOST'])
                     'created_at' => $question -> created_at,
                     'updated_at' => $question -> updated_at,
                     'response_text' => $question -> response_text,
+                    'sort_order' => $question -> sort_order,
                 ]);
                 //save the sorting criteria if it isn't there
+                //also, only do this part for some question types multiple-choice,check-boxes,radio
+             if($question -> type_id != 'text'){
                 if(db :: table ( 'my_sorting_criteria' )
                     -> where ( 'response_id', $question -> response_id )
                     -> doesntExist ()) {
@@ -252,16 +257,16 @@ if ($_SERVER ['HTTP_HOST'])
                               'criteria_id' => $criteria_id,
                           ]);
                         }
+             }
                         
             }
 // now files
             foreach($res -> files as $file) {
               db::table('myfiles')
-              -> where([
-                  ['appid', $res -> appid],
-                  ['file_id', $file -> file_id],
-              ])
-              -> updateOrInsert([
+              -> updateOrInsert(
+                  ['appid' => $res -> appid,
+                  'file_id' => $file -> file_id],
+                  [
                   'appid' => $res -> appid,
                   'file_id' => $file -> file_id,
                   'description' => $file -> description,
@@ -278,10 +283,12 @@ if ($_SERVER ['HTTP_HOST'])
             foreach($res -> recommendations as $recommendation) {
               db::table('myrecommendations')
               -> where([
-                  ['appid', $res -> appid],
-                  ['recid', $recommendation -> recid],
+                  
               ])
-              -> updateOrInsert([
+              -> updateOrInsert(
+                  ['appid' => $res -> appid,
+                  'recid' => $recommendation -> recid],
+                  [
                   'appid' => $res -> appid,
                   'recid' => $recommendation -> recid,
                   'email' => $recommendation -> email,
@@ -289,6 +296,7 @@ if ($_SERVER ['HTTP_HOST'])
                   'lname' => $recommendation -> lname,
                   'blobid' => $recommendation -> blobid,
                   'letterid' => $recommendation -> letterid,
+                  'institution' => $recommendation -> institution,
                   'department' => $recommendation -> department,
                   'created_at' => $recommendation -> created_at,
                   'updated_at' => $recommendation -> updated_at,
