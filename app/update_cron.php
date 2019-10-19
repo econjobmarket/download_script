@@ -36,6 +36,11 @@ if ($_SERVER ['HTTP_HOST'])
     
     print "Start by fetching applicants:\n";
     $result = $client -> fetch('applicants');
+    // make a record of existing applicants
+    $query = "select aid from myapplicants";
+    $myaids = db :: select($query, [1]);
+    var_dump($myaids);
+    exit();
     if($result) {
       
       foreach($result as $res) {
