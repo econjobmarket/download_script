@@ -36,15 +36,19 @@ if ($_SERVER ['HTTP_HOST'])
     
     print "Start by fetching applicants:\n";
     $result = $client -> fetch('applicants');
-    // make a record of existing applicants
-    $query = "select aid from myapplicants";
-    $myaids = db :: select($query, [1]);
-    var_dump($myaids);
-    exit();
+
     if($result) {
-      
+      // make a record of existing applicants
+      $query = "select aid from myapplicants";
+      $myads = array();
+      $myaids_stub = db :: select($query, [1]);
+      foreach($myaids_stub as $a) {
+        $myaids[$a -> aid] = 0;
+      }
+      unset($myaids_stub);
       foreach($result as $res) {
         if($showdots) print("*");
+        $myaids[$res -> aid] = 1;
         db::table('myapplicants')
         -> updateOrInsert(
             ['aid' => $res -> aid],
@@ -141,10 +145,25 @@ if ($_SERVER ['HTTP_HOST'])
         }
       }
       print "\nAfter applicants using ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
-    } else print "Nothing returned fetching applicants\n";
-    
-    
+      // now remove applicants who are no longer there
+      $k =0;
+      $kn = 0;
+      foreach($myaids as $key => $value) {
+        $kn++;
+        if($value == 0) {
+          db :: table('myapplicants') -> where('aid', $key) -> delete();
+          db :: table('myconferences') -> where('aid', $key) ->  delete();
+          db :: table('my_secondary_fields') -> where('aid', $key) -> delete();
+          $k++;
+        }
+      }
+      print "Removed $k of the $kn applicants\n";
+      unset($myaids);
       
+    } else print "Nothing returned fetching applicants\n";
+
+    
+   
       //starting with appications, note the insert or update method so entries are always replaced
     print "Processing applications now\n";
     $result = $client -> fetch('applications');
@@ -154,8 +173,17 @@ if ($_SERVER ['HTTP_HOST'])
       $result = $client -> fetch('applications');
     }
     if($result) {
+      // make a record of existing applications
+      $query = "select appid from myapplications";
+      $myappids = array();
+      $myappids_stub = db :: select($query, [1]);
+      foreach($myappids_stub as $a) {
+        $myappids[$a -> aid] = 0;
+      }
+      unset($myaids_stub);
       foreach($result as $res) {
           if($showdots) print("*");
+          $myappids[$res -> appid] = 1;
           db::table('myapplications')
             -> updateOrInsert(
                 ['appid' => $res -> appid],
@@ -311,6 +339,21 @@ if ($_SERVER ['HTTP_HOST'])
             
       }
       print "\nAfter applications used ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
+      $k =0;
+      $kn = 0;
+      foreach($myappids as $key => $value) {
+        $kn++;
+        if($value == 0) {
+          db :: table('myapplications') -> where('appid', $key) -> delete();
+          db :: table('my_criteria_assignment') -> where('appid', $key) ->  delete();
+          db :: table('myquestions') -> where('appid', $key) -> delete();
+          db :: table('myfiles') -> where('appid', $key) -> delete();
+          db :: table('myrecommendations') -> where('appid', $key) -> delete();
+          $k++;
+        }
+      }
+      print "Removed $k of the $kn applications\n";
+      unset($myappids);
     } else print "Nothing returned fetching applications\n";
        //final section will update blobs
     // check myfiles and myrecommendation tables then verify whether or not the blobs have 
@@ -389,8 +432,19 @@ if ($_SERVER ['HTTP_HOST'])
       }
       print "\n Added $n new letters\n";
       print "After processing files used ".memory_get_usage()." with peak ".memory_get_peak_usage()."\n";
-      print "Script started at $started_at and completed at ".date("Y-m-d H:i:s")."\n";
+      print "Updating placement officers\n";
+      $result = $client -> fetch('placement_officers');
+      foreach($result as $res) {
+        db::table('my_placement_officers')
+        -> updateOrInsert(
+            ['department' => $res -> department, 'name' => $res -> name],
+            ['fname' => $res -> fname, 'lname' => $res -> lname, 
+                'email' => $res -> email, 'urlplacement' => $res ->urlplacement]
+            );
+      }
       
+      print "Script started at $started_at and completed at ".date("Y-m-d H:i:s")."\n";
+
   }
 
    
