@@ -42,13 +42,14 @@ class DownloadUtility {
     if($id) return $id;
     return false;
   }
+  //
   public function getSortingIdFromConferenceId($conference_id) {
     $id = db::table('my_sorting_criteria')
     -> where('conference_id', $conference_id) -> value('criteria_id');
     if($id) return $id;
     return false;
   }
-  
+  //
   public function getFields($aid) {
     $fields = array();
     $field_ids = db::table('my_secondary_fields')

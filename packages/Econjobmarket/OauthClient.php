@@ -79,7 +79,7 @@ class OauthClient {
       
       $this -> error = "curl request returned false fetching $this->token_url ";
       $this -> error_description =  
-        curl_error($curl_session).curl_errno($curl_session).debug(curl_getinfo($curl_session));
+        curl_error($curl_session).curl_errno($curl_session).curl_getinfo($curl_session);
     }
   }
   //

@@ -1,5 +1,5 @@
 <?php 
-require_once '../vendor/autoload.php';
+require_once __DIR__.'/../vendor/autoload.php';
 use Econjobmarket\OauthClient;
 use Econjobmarket\DownloadUtility;
 use Illuminate\Database\Capsule\Manager;
@@ -20,8 +20,10 @@ if ($_SERVER ['HTTP_HOST'])
   $link -> addConnection($cfg -> database);
   $link -> setAsGlobal();
   $u = new DownloadUtility($cfg);
-  foreach($cfg -> rating_terms as $rating) {
-    $u -> verifyRatingExists($rating);
+  if($cfg -> rating_terms_add_once) {
+    foreach($cfg -> rating_terms as $rating) {
+      $u -> verifyRatingExists($rating);
+    }
   }
  // $autoloader = require... then $result = $autoloader -> findFile('Econjobmarket\OauthClient');
   $started_at = date("Y-m-d H:i:s");
