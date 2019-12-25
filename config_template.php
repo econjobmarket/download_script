@@ -29,9 +29,10 @@ $cfg -> use_drupal_module = true;
  */
 $cfg -> transfer_blobs = false;
 //randomly assign each new application to someone on the recruiting committee, fill in the number of desired
-// assignments per application.  This is for the drupal module only 
+// assignments per application.  This is for the drupal module only - leave it at 0 otherwise
 $cfg -> auto_assign = 0;
 // rating terms that you want included in myratings
+//drupal module only , leave empty otherwise
 $cfg -> rating_terms = ["Good", "Bad", "Ugly",];
 //whether to add rating terms if there are already rating terms, true means skip them
 $cfg -> rating_terms_add_once = true;
