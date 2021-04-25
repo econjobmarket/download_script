@@ -1,8 +1,8 @@
 {
     "require": {
-        "illuminate/database": "^5.8",
+        "illuminate/database": "^8.8",
         "vlucas/phpdotenv": "^3.3",
-        "illuminate/events": "^5.8"
+        "illuminate/events": "^8.8"
     },
     "autoload": {
         "psr-4": {
