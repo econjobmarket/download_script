@@ -55,6 +55,7 @@ if ($client -> error) {
       if ($showdots)
         print ("*") ;
       $myaids [$res -> aid] = 1;
+      try {
       db :: table ( 'myapplicants' ) -> updateOrInsert ( [ 'aid' => $res -> aid ], [ 'aid' => $res -> aid,
           'enrolldate' => $res -> enrolldate,
           'changedate' => $res -> changedate,
@@ -83,6 +84,10 @@ if ($client -> error) {
           'nationality' => $res -> nationality,
           'statusinactivedate' => $res -> statusinactivedate,
           'last_revised_time' => $res -> last_revised_time ] );
+      }  catch(Exception $e) {
+          print "Database exception when refreshing applicants table\n Error: ".$e -> getMessage()."\n";
+          exit();
+      }
       // make sure the gender has been recorded in my_sorting_criteria
       if (db :: table ( 'my_sorting_criteria' ) -> where ( 'criteria', $res -> gender ) 
         -> doesntExist ()) {
